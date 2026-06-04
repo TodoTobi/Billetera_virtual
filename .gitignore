@@ -1,8 +1,4 @@
-# Secretos — NUNCA subir al repositorio
-.env
-*.env
-.env.local
-.env.production
+
 
 # Node
 node_modules/
