@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Billetera Virtual</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  /* ── TOKENS ── */
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #111118;
+    --card:      #16161f;
+    --border:    #1e1e2e;
+    --accent:    #7c6af7;
+    --accent2:   #34d399;
+    --danger:    #f87171;
+    --warn:      #fbbf24;
+    --text:      #e2e2ef;
+    --muted:     #6b6b8a;
+    --radius:    14px;
+    --font:      'Syne', sans-serif;
+    --mono:      'DM Mono', monospace;
+    --glow:      0 0 40px rgba(124,106,247,.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* subtle grid bg */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,247,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,247,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ── LAYOUT ── */
+  #app { max-width: 960px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+  .logo {
+    font-size: 1.1rem; font-weight: 800; letter-spacing: -0.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    display: flex; align-items: center; justify-content: center; font-size: .9rem;
+  }
+  .badge {
+    font-family: var(--mono); font-size: .65rem; font-weight: 500;
+    padding: 3px 8px; border-radius: 20px; letter-spacing: .5px;
+  }
+  .badge-admin { background: rgba(251,191,36,.12); color: var(--warn); border: 1px solid rgba(251,191,36,.2); }
+  .badge-user  { background: rgba(52,211,153,.12);  color: var(--accent2); border: 1px solid rgba(52,211,153,.2); }
+  #user-info { display: flex; align-items: center; gap: 10px; }
+  #user-info span { font-size: .85rem; color: var(--muted); }
+
+  /* ── VIEWS ── */
+  .view { display: none; animation: fadeUp .3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── AUTH SCREEN ── */
+  #view-auth {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 80vh; gap: 0;
+  }
+  #view-auth.active { display: flex; }
+  .auth-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%; max-width: 420px;
+    box-shadow: var(--glow);
+  }
+  .auth-box h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 6px; }
+  .auth-box p  { color: var(--muted); font-size: .85rem; margin-bottom: 28px; }
+  .auth-tabs {
+    display: flex; gap: 4px;
+    background: var(--surface);
+    padding: 4px; border-radius: 10px;
+    margin-bottom: 24px;
+  }
+  .auth-tab {
+    flex: 1; padding: 8px; border: none; background: none;
+    color: var(--muted); cursor: pointer; border-radius: 8px;
+    font-family: var(--font); font-size: .85rem; font-weight: 600;
+    transition: all .2s;
+  }
+  .auth-tab.active {
+    background: var(--card); color: var(--text);
+    box-shadow: 0 1px 6px rgba(0,0,0,.4);
+  }
+
+  /* ── FORMS ── */
+  .field { margin-bottom: 16px; }
+  label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted);
+          text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  input, select {
+    width: 100%; padding: 12px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text);
+    font-family: var(--font); font-size: .9rem;
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+  }
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,106,247,.15);
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 20px; border-radius: 10px; border: none;
+    font-family: var(--font); font-size: .9rem; font-weight: 700;
+    cursor: pointer; transition: all .2s; letter-spacing: .2px;
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary {
+    background: var(--accent); color: #fff; width: 100%;
+    box-shadow: 0 4px 20px rgba(124,106,247,.3);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #6c5ce7;
+    box-shadow: 0 4px 28px rgba(124,106,247,.5);
+    transform: translateY(-1px);
+  }
+  .btn-sm {
+    padding: 7px 14px; font-size: .8rem; width: auto;
+    background: rgba(124,106,247,.15); color: var(--accent);
+    border: 1px solid rgba(124,106,247,.25);
+  }
+  .btn-sm:hover { background: rgba(124,106,247,.25); }
+  .btn-danger-sm {
+    padding: 7px 14px; font-size: .8rem; width: auto;
+    background: rgba(248,113,113,.12); color: var(--danger);
+    border: 1px solid rgba(248,113,113,.2);
+  }
+  .btn-logout {
+    background: rgba(248,113,113,.1); color: var(--danger);
+    border: 1px solid rgba(248,113,113,.2);
+    padding: 8px 16px; font-size: .8rem;
+  }
+  .btn-logout:hover { background: rgba(248,113,113,.2); }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    display: flex; gap: 2px;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 5px; border-radius: 12px; margin-bottom: 28px;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    flex: 1; min-width: max-content; padding: 9px 16px;
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; border-radius: 8px;
+    font-family: var(--font); font-size: .82rem; font-weight: 600;
+    transition: all .2s; white-space: nowrap;
+  }
+  .nav-tab.active { background: var(--accent); color: #fff; }
+  .nav-tab:hover:not(.active) { color: var(--text); background: var(--border); }
+
+  /* ── PANELS ── */
+  .panel { display: none; animation: fadeUp .25s ease; }
+  .panel.active { display: block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: .72rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
+  }
+
+  /* ── SALDO HERO ── */
+  .saldo-hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 1px solid rgba(124,106,247,.3);
+    border-radius: 20px; padding: 36px;
+    text-align: center; margin-bottom: 24px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.4);
+  }
+  .saldo-hero::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,106,247,.2) 0%, transparent 70%);
+  }
+  .saldo-label { font-size: .78rem; color: var(--muted); text-transform: uppercase;
+                 letter-spacing: 1.5px; margin-bottom: 8px; }
+  .saldo-amount {
+    font-size: 3.2rem; font-weight: 800; letter-spacing: -2px;
+    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+  .saldo-currency { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th {
+    text-align: left; padding: 10px 14px;
+    font-size: .7rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .8px;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid rgba(30,30,46,.6); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(124,106,247,.04); }
+
+  /* ── CHIPS ── */
+  .chip {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-family: var(--mono); font-size: .7rem; font-weight: 500;
+  }
+  .chip-in  { background: rgba(52,211,153,.12); color: var(--accent2); }
+  .chip-out { background: rgba(248,113,113,.12); color: var(--danger); }
+  .chip-admin { background: rgba(251,191,36,.12); color: var(--warn); }
+
+  /* ── ALERTS ── */
+  .alert {
+    padding: 12px 16px; border-radius: 10px; font-size: .85rem;
+    margin-bottom: 16px; display: none;
+  }
+  .alert.show { display: block; animation: fadeUp .2s ease; }
+  .alert-error   { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); color: var(--danger); }
+  .alert-success { background: rgba(52,211,153,.1);  border: 1px solid rgba(52,211,153,.25);  color: var(--accent2); }
+
+  /* ── GRID 2 COL ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ── STAT CARDS ── */
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase;
+                letter-spacing: .8px; margin-bottom: 8px; }
+  .stat-value { font-size: 1.6rem; font-weight: 800; }
+  .stat-value.green { color: var(--accent2); }
+  .stat-value.purple { color: var(--accent); }
+
+  /* ── SPINNER ── */
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin .6s linear infinite; display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── EMPTY STATE ── */
+  .empty { text-align: center; padding: 40px; color: var(--muted); }
+  .empty-icon { font-size: 2rem; margin-bottom: 10px; opacity: .3; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; display: none;
+  }
+  .modal-overlay.open { display: flex; animation: fadeUp .2s ease; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 32px; width: 100%; max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .modal h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; }
+
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-header h3 { font-size: 1rem; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">💎</div>
+      Billetera Virtual
+    </div>
+    <div id="user-info" style="display:none">
+      <span id="header-username"></span>
+      <span id="header-badge" class="badge"></span>
+      <button class="btn btn-logout" onclick="logout()">Salir</button>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════
+       VIEW: AUTH
+  ══════════════════════════════════ -->
+  <div id="view-auth" class="view active">
+    <div class="auth-box">
+      <h2>Bienvenido</h2>
+      <p>Tu billetera virtual segura</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">Iniciar sesión</button>
+        <button class="auth-tab" onclick="switchTab('registro')">Registrarse</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="tab-login">
+        <div id="alert-login" class="alert alert-error"></div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="tu@email.com"/>
+        </div>
+        <div class="field">
+          <label>Contraseña</label>
+          <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <button class="btn btn-primary" id="btn-login" onclick="doLogin()">Iniciar sesión</button>
+      </div>
+
+      <!-- REGISTRO -->
+      <div id="tab-registro" style="display:none">
+        <div id="alert-reg" class="alert alert-error"></div>
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="reg-username" placeholder="tunombre"/>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="tu@email.com"/>
+        </div>
+        <div class="field">
+          <label>Contraseña (mín. 8 caracteres)</label>
+          <input type="password" id="reg-pass" placeholder="••••••••"/>
+        </div>
+        <div class="field">
+          <label>Rol</label>
+          <select id="reg-role">
+            <option value="usuario">Usuario</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btn-reg" onclick="doRegistro()">Crear cuenta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       VIEW: DASHBOARD (usuario)
+  ══════════════════════════════════ -->
+  <div id="view-dashboard" class="view">
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchPanel('panel-saldo')">💎 Mi saldo</button>
+      <button class="nav-tab" onclick="switchPanel('panel-transferir')">↗ Transferir</button>
+      <button class="nav-tab" onclick="switchPanel('panel-historial')">📋 Historial</button>
+    </div>
+
+    <!-- SALDO -->
+    <div id="panel-saldo" class="panel active">
+      <div class="saldo-hero">
+        <div class="saldo-label">Saldo disponible</div>
+        <div class="saldo-amount" id="saldo-display">—</div>
+        <div class="saldo-currency">CRÉDITOS VIRTUALES</div>
+      </div>
+      <div class="grid-2">
+        <div class="stat-card">
+          <div class="stat-label">Transferencias enviadas</div>
+          <div class="stat-value purple" id="stat-enviadas">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Transferencias recibidas</div>
+          <div class="stat-value green" id="stat-recibidas">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSFERIR -->
+    <div id="panel-transferir" class="panel">
+      <div class="card">
+        <div class="card-title">Nueva transferencia</div>
+        <div id="alert-transfer" class="alert"></div>
+        <div class="field">
+          <label>Destinatario (username o email)</label>
+          <input type="text" id="dest-input" placeholder="username o email"/>
+        </div>
+        <div class="field">
+          <label>Monto (créditos)</label>
+          <input type="number" id="monto-input" placeholder="0" min="1" step="1"/>
+        </div>
+        <button class="btn btn-primary" id="btn-transfer" onclick="doTransfer()">
+          Enviar créditos
+        </button>
+      </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div id="panel-historial" class="panel">
+      <div class="card">
+        <div class="section-header">
+          <h3>Mis transferencias</h3>
+          <button class="btn btn-sm" onclick="loadHistorial()">↺ Actualizar</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Contraparte</th>
+                <th>Monto</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="historial-body">
+              <tr><td colspan="4"><div class="empty"><div class="empty-icon">📋</div>Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       VIEW: ADMIN
+  ══════════════════════════════════ -->
+  <div id="view-admin" class="view">
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchPanel('panel-admin-usuarios')">👥 Usuarios</button>
+      <button class="nav-tab" onclick="switchPanel('panel-admin-hist')">📊 Historial global</button>
+    </div>
+
+    <!-- ADMIN: USUARIOS -->
+    <div id="panel-admin-usuarios" class="panel active">
+      <div class="card">
+        <div class="section-header">
+          <h3>Todos los usuarios</h3>
+          <button class="btn btn-sm" onclick="loadAdminUsuarios()">↺ Actualizar</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Saldo</th>
+                <th>Top-up</th>
+              </tr>
+            </thead>
+            <tbody id="admin-usuarios-body">
+              <tr><td colspan="5"><div class="empty"><div class="empty-icon">👥</div>Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN: HISTORIAL GLOBAL -->
+    <div id="panel-admin-hist" class="panel">
+      <div class="card">
+        <div class="section-header">
+          <h3>Historial completo del sistema</h3>
+          <button class="btn btn-sm" onclick="loadAdminHistorial()">↺ Actualizar</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Emisor</th>
+                <th>Receptor</th>
+                <th>Monto</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="admin-hist-body">
+              <tr><td colspan="4"><div class="empty"><div class="empty-icon">📊</div>Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL TOP-UP -->
+<div class="modal-overlay" id="modal-topup">
+  <div class="modal">
+    <h3>Agregar créditos</h3>
+    <div id="alert-topup" class="alert"></div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">
+      Usuario: <strong id="topup-username"></strong>
+    </p>
+    <div class="field">
+      <label>Monto a agregar</label>
+      <input type="number" id="topup-monto" placeholder="500" min="1"/>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-primary" onclick="doTopup()">Confirmar</button>
+      <button class="btn btn-sm" onclick="closeModal()" style="flex:1">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════
+const API = 'http://localhost:3000';
+let TOKEN = null;
+let CURRENT_USER = null;
+let TOPUP_TARGET = null;
+
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+  return fetch(API + path, { headers, ...opts })
+    .then(async r => {
+      const data = await r.json();
+      if (!r.ok) throw data;
+      return data;
+    });
+}
+
+function showAlert(id, msg, type = 'error') {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = `alert alert-${type} show`;
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+function fmtDate(d) {
+  return new Date(d).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? '<span class="spinner"></span> Procesando...'
+    : btn.dataset.label || btn.innerHTML;
+}
+
+// ════════════════════════════════════════════
+// AUTH TABS
+// ════════════════════════════════════════════
+function switchTab(tab) {
+  document.getElementById('tab-login').style.display    = tab === 'login'    ? 'block' : 'none';
+  document.getElementById('tab-registro').style.display = tab === 'registro' ? 'block' : 'none';
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'registro'));
+  });
+}
+
+// ════════════════════════════════════════════
+// NAV TABS
+// ════════════════════════════════════════════
+function switchPanel(panelId) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(panelId).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.remove('active'));
+
+  const map = {
+    'panel-saldo':          0, 'panel-transferir': 1, 'panel-historial':    2,
+    'panel-admin-usuarios': 0, 'panel-admin-hist': 1
+  };
+  const tabs = document.querySelectorAll('#view-' + (CURRENT_USER?.role === 'admin' ? 'admin' : 'dashboard') + ' .nav-tab');
+  if (tabs[map[panelId]]) tabs[map[panelId]].classList.add('active');
+
+  if (panelId === 'panel-saldo')          loadSaldo();
+  if (panelId === 'panel-historial')      loadHistorial();
+  if (panelId === 'panel-admin-usuarios') loadAdminUsuarios();
+  if (panelId === 'panel-admin-hist')     loadAdminHistorial();
+}
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+}
+
+// ════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+
+  document.getElementById('btn-login').dataset.label = 'Iniciar sesión';
+  setLoading('btn-login', true);
+
+  try {
+    const data = await api('/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password: pass })
+    });
+
+    TOKEN = data.token;
+    CURRENT_USER = { username: data.username, role: data.role };
+
+    // Actualizar header
+    document.getElementById('user-info').style.display = 'flex';
+    document.getElementById('header-username').textContent = data.username;
+    const badge = document.getElementById('header-badge');
+    badge.textContent = data.role.toUpperCase();
+    badge.className = 'badge ' + (data.role === 'admin' ? 'badge-admin' : 'badge-user');
+
+    if (data.role === 'admin') {
+      showView('admin');
+      loadAdminUsuarios();
+    } else {
+      showView('dashboard');
+      loadSaldo();
+    }
+  } catch (err) {
+    showAlert('alert-login', err.error || 'Error al iniciar sesión.');
+  } finally {
+    setLoading('btn-login', false);
+    document.getElementById('btn-login').textContent = 'Iniciar sesión';
+  }
+}
+
+// ════════════════════════════════════════════
+// REGISTRO
+// ════════════════════════════════════════════
+async function doRegistro() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const pass     = document.getElementById('reg-pass').value;
+  const role     = document.getElementById('reg-role').value;
+
+  setLoading('btn-reg', true);
+  try {
+    await api('/registro', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password: pass, role })
+    });
+    showAlert('alert-reg', '✓ Cuenta creada con 1000 créditos. Iniciá sesión.', 'success');
+    document.getElementById('alert-reg').className = 'alert alert-success show';
+    setTimeout(() => switchTab('login'), 1500);
+  } catch (err) {
+    const msg = err.errors ? err.errors.map(e => e.msg).join(' · ') : err.error || 'Error.';
+    showAlert('alert-reg', msg);
+  } finally {
+    setLoading('btn-reg', false);
+    document.getElementById('btn-reg').textContent = 'Crear cuenta';
+  }
+}
+
+// ════════════════════════════════════════════
+// SALDO
+// ════════════════════════════════════════════
+async function loadSaldo() {
+  try {
+    const data = await api('/saldo');
+    document.getElementById('saldo-display').textContent = data.saldo.toLocaleString('es-AR');
+    loadHistorialStats();
+  } catch {}
+}
+
+async function loadHistorialStats() {
+  try {
+    const hist = await api('/historial');
+    const enviadas  = hist.filter(h => h.tipo === 'enviada').length;
+    const recibidas = hist.filter(h => h.tipo === 'recibida').length;
+    document.getElementById('stat-enviadas').textContent  = enviadas;
+    document.getElementById('stat-recibidas').textContent = recibidas;
+  } catch {}
+}
+
+// ════════════════════════════════════════════
+// TRANSFERIR
+// ════════════════════════════════════════════
+async function doTransfer() {
+  const dest  = document.getElementById('dest-input').value.trim();
+  const monto = parseFloat(document.getElementById('monto-input').value);
+
+  if (!dest || !monto || monto <= 0) {
+    showAlert('alert-transfer', 'Completá todos los campos con valores válidos.');
+    return;
+  }
+
+  document.getElementById('btn-transfer').dataset.label = 'Enviar créditos';
+  setLoading('btn-transfer', true);
+  try {
+    const data = await api('/transferir', {
+      method: 'POST',
+      body: JSON.stringify({ destinatario: dest, monto })
+    });
+    const el = document.getElementById('alert-transfer');
+    el.textContent = '✓ ' + data.message;
+    el.className = 'alert alert-success show';
+    document.getElementById('dest-input').value  = '';
+    document.getElementById('monto-input').value = '';
+    loadSaldo();
+  } catch (err) {
+    const msg = err.errors ? err.errors.map(e => e.msg).join(' · ') : err.error || 'Error en la transferencia.';
+    showAlert('alert-transfer', msg);
+  } finally {
+    setLoading('btn-transfer', false);
+    document.getElementById('btn-transfer').textContent = 'Enviar créditos';
+  }
+}
+
+// ════════════════════════════════════════════
+// HISTORIAL USUARIO
+// ════════════════════════════════════════════
+async function loadHistorial() {
+  const tbody = document.getElementById('historial-body');
+  tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><span class="spinner"></span></div></td></tr>';
+  try {
+    const data = await api('/historial');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><div class="empty-icon">📋</div>Sin transferencias aún.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(t => `
+      <tr>
+        <td><span class="chip ${t.tipo === 'recibida' ? 'chip-in' : 'chip-out'}">${t.tipo}</span></td>
+        <td>${t.contraparte}</td>
+        <td style="font-family:var(--mono);font-weight:600">${parseFloat(t.monto).toLocaleString('es-AR')}</td>
+        <td style="color:var(--muted);font-size:.8rem">${fmtDate(t.fecha)}</td>
+      </tr>
+    `).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty">Error al cargar historial.</div></td></tr>';
+  }
+}
+
+// ════════════════════════════════════════════
+// ADMIN: USUARIOS
+// ════════════════════════════════════════════
+async function loadAdminUsuarios() {
+  const tbody = document.getElementById('admin-usuarios-body');
+  tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><span class="spinner"></span></div></td></tr>';
+  try {
+    const data = await api('/admin/usuarios');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty">Sin usuarios.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(u => `
+      <tr>
+        <td><strong>${u.username}</strong></td>
+        <td style="color:var(--muted);font-size:.82rem">${u.email}</td>
+        <td><span class="chip ${u.role === 'admin' ? 'chip-admin' : 'chip-in'}">${u.role}</span></td>
+        <td style="font-family:var(--mono);font-weight:700">${parseFloat(u.saldo).toLocaleString('es-AR')}</td>
+        <td>
+          <button class="btn btn-sm" onclick="openTopup(${u.id}, '${u.username}')">+ Top-up</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">Error al cargar usuarios.</div></td></tr>';
+  }
+}
+
+// ════════════════════════════════════════════
+// ADMIN: HISTORIAL GLOBAL
+// ════════════════════════════════════════════
+async function loadAdminHistorial() {
+  const tbody = document.getElementById('admin-hist-body');
+  tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><span class="spinner"></span></div></td></tr>';
+  try {
+    const data = await api('/admin/historial');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty">Sin transferencias en el sistema.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(t => `
+      <tr>
+        <td><strong>${t.emisor}</strong></td>
+        <td>${t.receptor}</td>
+        <td style="font-family:var(--mono);font-weight:600">${parseFloat(t.monto).toLocaleString('es-AR')}</td>
+        <td style="color:var(--muted);font-size:.8rem">${fmtDate(t.fecha)}</td>
+      </tr>
+    `).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty">Error al cargar historial.</div></td></tr>';
+  }
+}
+
+// ════════════════════════════════════════════
+// TOP-UP MODAL
+// ════════════════════════════════════════════
+function openTopup(userId, username) {
+  TOPUP_TARGET = userId;
+  document.getElementById('topup-username').textContent = username;
+  document.getElementById('topup-monto').value = '';
+  document.getElementById('modal-topup').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-topup').classList.remove('open');
+  TOPUP_TARGET = null;
+}
+
+async function doTopup() {
+  const monto = parseFloat(document.getElementById('topup-monto').value);
+  if (!monto || monto <= 0) {
+    showAlert('alert-topup', 'Ingresá un monto válido.');
+    return;
+  }
+  try {
+    const data = await api('/admin/topup', {
+      method: 'POST',
+      body: JSON.stringify({ usuario_id: TOPUP_TARGET, monto })
+    });
+    const el = document.getElementById('alert-topup');
+    el.textContent = '✓ ' + data.message;
+    el.className = 'alert alert-success show';
+    setTimeout(() => { closeModal(); loadAdminUsuarios(); }, 1500);
+  } catch (err) {
+    showAlert('alert-topup', err.error || 'Error en el top-up.');
+  }
+}
+
+// ════════════════════════════════════════════
+// LOGOUT
+// ════════════════════════════════════════════
+function logout() {
+  TOKEN = null;
+  CURRENT_USER = null;
+  document.getElementById('user-info').style.display = 'none';
+  showView('auth');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value  = '';
+}
+</script>
+</body>
+</html>
