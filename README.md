@@ -1,4 +1,4 @@
-# 💎 Mini Billetera Virtual Segura
+# Mini Billetera Virtual Segura
 
 **Materia:** Procesamiento de la Información — ET N° 20  
 **Alumno:** Tobias Vera  
